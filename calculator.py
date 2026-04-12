@@ -15,8 +15,6 @@ from settlement_mega_recipe import make_settlement_mega_recipe
 
 # Big-M constant: must exceed any possible contract flow value
 BIG_M = 10_000
-# Reserve some unity for manual use outside the optimizer
-UNITY_BUFFER = 1
 
 # Penalty for factory logistics (minimize total factory i/o)
 LOGISTICS_COST = 1
@@ -33,6 +31,7 @@ CONTRACT_ACTIVATION_PENALTY = 10
 PRODUCTION_TARGETS = {
     'Research': 288,
     'Worker': 1000, # add some extra workers for various stuff beyond research
+    'Upoints': 2, # leave at least 2 Unity
     'Truck': 200,
 }
 
@@ -297,7 +296,7 @@ def main(verbose=False):
     # --- Most promising search space ---
 
     # Settlement unity multiplers
-    unity_multipliers           = [2, 2.25]
+    unity_multipliers           = [2.25]
 
     # (effect_multiplier, unity_cost)
     research_edicts             = [(1.6, -6)]
@@ -315,22 +314,22 @@ def main(verbose=False):
 
     # --- Re-run a combination ---
 
-    # # Settlement unity multiplers
-    # unity_multipliers           = [2.25]
+    # Settlement unity multiplers
+    unity_multipliers           = [2.25]
 
-    # # (effect_multiplier, unity_cost)
-    # research_edicts             = [(1.6, -6)]
-    # food_edicts                 = [(1.0, 0)] 
-    # maintenance_edicts          = [(0.75, -2)]
-    # recycling_edicts            = [(0.55, -5)]
+    # (effect_multiplier, unity_cost)
+    research_edicts             = [(1.6, -6)]
+    food_edicts                 = [(1.0, 0)] 
+    maintenance_edicts          = [(0.7, -3)]
+    recycling_edicts            = [(0.60, -7)]
 
-    # # (effect_multiplier, unity_multiplier_for_item)
-    # household_goods_edicts      = [(1.4, 1.3)]
-    # household_appliances_edicts = [(1, 1)]
-    # consumer_electronics_edicts = [(1.7, 1.45)]
+    # (effect_multiplier, unity_multiplier_for_item)
+    household_goods_edicts      = [(1.2, 1.15)]
+    household_appliances_edicts = [(1, 1)]
+    consumer_electronics_edicts = [(1, 1)]
 
-    # luxury_goods = [True]
-    # computing = [True]
+    luxury_goods = [True]
+    computing = [True]
 
     if not verbose:
         optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -357,10 +356,7 @@ def main(verbose=False):
         unity_from_settlement, settlement_recipe = make_settlement_mega_recipe(
             unity_multiplier, hg_cost_mult, hg_unity_mult, ha_cost_mult, ha_unity_mult, ce_cost_mult, ce_unity_mult, food_mult, recyc_eff, provide_luxury_goods, provide_computing
         )
-        unity_budget = unity_from_settlement + unity_food + unity_maint + unity_recyc + unity_research - UNITY_BUFFER
-
-        if unity_budget < 0:
-            raise optuna.TrialPruned()
+        unity_budget = unity_from_settlement + unity_food + unity_maint + unity_recyc + unity_research
 
         recipes = deepcopy(base_recipes)
         recipes.append(settlement_recipe)
@@ -441,7 +437,7 @@ def main(verbose=False):
     unity_from_settle_best, settlement_recipe_best = make_settlement_mega_recipe(
         best_unity_mult, hg_cost_mult, hg_unity_mult, ha_cost_mult, ha_unity_mult, ce_cost_mult, ce_unity_mult, best_food_mult, best_recyc_eff, provide_luxury_goods, provide_computing
     )
-    final_budget = unity_from_settle_best + unity_food_best + unity_maint_best + unity_recyc_best + unity_research_best - UNITY_BUFFER
+    final_budget = unity_from_settle_best + unity_food_best + unity_maint_best + unity_recyc_best + unity_research_best
     final_recipes = deepcopy(base_recipes)
     final_recipes.append(settlement_recipe_best)
     apply_edicts(final_recipes, best_maint_mult, best_recyc_eff)

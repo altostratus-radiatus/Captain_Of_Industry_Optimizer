@@ -82,7 +82,7 @@ CONTRACT_ROUNDTRIP_TIME = 270
 CONTRACT_HYDROGEN_PER_TRIP = 1013
 CONTRACT_INFRA_COSTS = [('Worker', 8 * 5 + 36), ('MaintenanceT1', 8 * 4), ('Electricity', 8 * 250), ('Hydrogen', CONTRACT_HYDROGEN_PER_TRIP / CONTRACT_ROUNDTRIP_TIME * SECONDS_PER_MONTH)]
 CONTRACT_BUILDING_SIZE = 8 * 50 + 80 # whatever
-AWKWARD_CONTRACT_PRODUCTS = {'Wheat', 'SugarCane', 'Corn', 'Wood', 'Vegetables', 'ChickenCarcass'}
+AWKWARD_CONTRACT_PRODUCTS = {'Wheat', 'SugarCane', 'Corn', 'Wood', 'Vegetables', 'ChickenCarcass', 'FuelGas'}
 
 def normalize_count(name, count, time, group_name):
     """Convert a recipe quantity to per-60-second throughput for one machine."""
