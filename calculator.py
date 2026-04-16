@@ -12,9 +12,13 @@ from ortools.init.python import init
 from ortools.linear_solver import pywraplp
 
 from settlement_mega_recipe import make_settlement_mega_recipe
+from config import BASE_RESEARCH_TARGET
 
 # Big-M constant: must exceed any possible contract flow value
 BIG_M = 10_000
+
+# Consider solutions with extremely close objective costs equivalent
+OBJECTIVE_SIGNIFICANT_DIGITS = 4
 
 # Penalty for factory logistics (minimize total factory i/o)
 LOGISTICS_COST = 1
@@ -29,11 +33,16 @@ CONTRACT_ACTIVATION_PENALTY = 10
 
 # Minimum monthly production required for each target item
 PRODUCTION_TARGETS = {
-    'Research': 288,
-    'Worker': 1000, # add some extra workers for various stuff beyond research
-    'Upoints': 2, # leave at least 2 Unity
+    'Research': BASE_RESEARCH_TARGET,
+    'SpaceResearch': BASE_RESEARCH_TARGET,
+    'Worker': 2000, # add some extra workers because LP underestimates real worker count due to fractional flows/machine counts
     'Truck': 200,
 }
+ALLOW_OVERPRODUCTION = {
+    # 'UraniumDepleted', 'SpentMox', 'Dirt', 'Rock', 'Compost', 'Slag'
+} - PRODUCTION_TARGETS.keys()
+# Unity/Upoints are handled separately, this parameter requires the optimizer to overproduce Unity at this rate
+UNITY_BUFFER = 0.5
 
 SPECIAL_RESOURCES = {
     'Electricity', 'MechPower', 'Upoints', 'Research', 'Worker', 'MaintenanceT1', 'MaintenanceT2', 'MaintenanceT3', 'Computing',
@@ -121,10 +130,11 @@ def build_solver(unity_budget, recipes, contract_monthly_unity_costs, solver_typ
     all_items.discard('Upoints')
 
     for item in all_items:
-        # if item == 'UraniumDepleted' or item == 'SpentMox':
-        #     constraint = solver.Constraint(0, inf, f'Whatever_{item}')
-        if item in PRODUCTION_TARGETS:
-            constraint = solver.Constraint(PRODUCTION_TARGETS[item], inf, f'Target_{item}')
+        if item in ALLOW_OVERPRODUCTION:
+            constraint = solver.Constraint(0, inf, f'Unbalanced_{item}')
+        elif item in PRODUCTION_TARGETS:
+            # constraint = solver.Constraint(PRODUCTION_TARGETS[item], inf, f'Target_{item}') # struggles probably becase space station produces Unity
+            constraint = solver.Constraint(PRODUCTION_TARGETS[item], PRODUCTION_TARGETS[item], f'Target_{item}')
         else:
             constraint = solver.Constraint(0, 0, f'Balance_{item}')
         for recipe_name, coeff in net[item].items():
@@ -135,10 +145,12 @@ def build_solver(unity_budget, recipes, contract_monthly_unity_costs, solver_typ
 
     # --- Unity budget constraint ---
     unity_cons = solver.Constraint(0, unity_budget, 'Unity_Budget')
-    for recipe_name, ingredients, _, _ in recipes:
-        upoints_rate = next((c for n, c in ingredients if n == 'Upoints'), 0)
-        if upoints_rate > 0:
-            unity_cons.SetCoefficient(recipe_vars[recipe_name], upoints_rate)
+    for recipe_name, ingredients, products, _ in recipes:
+        upoints_consumption = next((c for n, c in ingredients if n == 'Upoints'), 0)
+        upoints_production = next((c for n, c in products if n == 'Upoints'), 0)
+        net_upoints = upoints_consumption - upoints_production
+        if net_upoints:
+            unity_cons.SetCoefficient(recipe_vars[recipe_name], net_upoints)
         if recipe_name in contract_active_vars:
             unity_cons.SetCoefficient(contract_active_vars[recipe_name], contract_monthly_unity_costs[recipe_name])
     constraints[unity_cons.name()] = unity_cons
@@ -296,7 +308,7 @@ def main(verbose=False):
     # --- Most promising search space ---
 
     # Settlement unity multiplers
-    unity_multipliers           = [2.25]
+    unity_multipliers           = [1.75, 2, 2.25]
 
     # (effect_multiplier, unity_cost)
     research_edicts             = [(1.6, -6)]
@@ -314,22 +326,22 @@ def main(verbose=False):
 
     # --- Re-run a combination ---
 
-    # Settlement unity multiplers
-    unity_multipliers           = [2.25]
+    # # Settlement unity multiplers
+    # unity_multipliers           = [2]
 
-    # (effect_multiplier, unity_cost)
-    research_edicts             = [(1.6, -6)]
-    food_edicts                 = [(1.0, 0)] 
-    maintenance_edicts          = [(0.7, -3)]
-    recycling_edicts            = [(0.60, -7)]
+    # # (effect_multiplier, unity_cost)
+    # research_edicts             = [(1.6, -6)]
+    # food_edicts                 = [(1.0, 0)] 
+    # maintenance_edicts          = [(0.7, -3)]
+    # recycling_edicts            = [(0.55, -5)]
 
-    # (effect_multiplier, unity_multiplier_for_item)
-    household_goods_edicts      = [(1.2, 1.15)]
-    household_appliances_edicts = [(1, 1)]
-    consumer_electronics_edicts = [(1, 1)]
+    # # (effect_multiplier, unity_multiplier_for_item)
+    # household_goods_edicts      = [(1, 1)]
+    # household_appliances_edicts = [(1, 1)]
+    # consumer_electronics_edicts = [(1, 1)]
 
-    luxury_goods = [True]
-    computing = [True]
+    # luxury_goods = [True]
+    # computing = [True]
 
     if not verbose:
         optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -356,7 +368,7 @@ def main(verbose=False):
         unity_from_settlement, settlement_recipe = make_settlement_mega_recipe(
             unity_multiplier, hg_cost_mult, hg_unity_mult, ha_cost_mult, ha_unity_mult, ce_cost_mult, ce_unity_mult, food_mult, recyc_eff, provide_luxury_goods, provide_computing
         )
-        unity_budget = unity_from_settlement + unity_food + unity_maint + unity_recyc + unity_research
+        unity_budget = unity_from_settlement + unity_food + unity_maint + unity_recyc + unity_research - UNITY_BUFFER
 
         recipes = deepcopy(base_recipes)
         recipes.append(settlement_recipe)
@@ -366,7 +378,8 @@ def main(verbose=False):
         cost, _ = run_scip_pass(unity_budget, recipes, contract_monthly_unity_costs)
         if cost is None:
             raise optuna.TrialPruned()
-        return cost / research_mult
+        # research multiplier is handled in a special way. instead of producing less research with higher research multiplier (which messes up building ratios), all factories produce the same amount of base research, but the total cost of a factory is scaled down based on the research multiplier
+        return round(cost / research_mult, OBJECTIVE_SIGNIFICANT_DIGITS)
 
     search_space = {
         "unity_multiplier": unity_multipliers,
@@ -380,19 +393,23 @@ def main(verbose=False):
         "luxury_goods": luxury_goods,
         "computing": computing
     }
-    startup_trials = 500
-    if prod(len(choices) for choices in search_space.values()) < 20:
+    startup_trials = 1000
+    early_stopping_rounds = 400
+    search_space_size = prod(len(choices) for choices in search_space.values())
+    print('Search space size: ', search_space_size)
+    if search_space_size < startup_trials + early_stopping_rounds:
+        print('Starting grid search')
         study = optuna.create_study(direction='minimize', sampler=optuna.samplers.GridSampler(search_space))
         n_jobs = 1
     else:
+        print("Starting Bayesian Optimization (Search Phase)...")
         study = optuna.create_study(direction='minimize', sampler=optuna.samplers.TPESampler(n_startup_trials=startup_trials, constant_liar=True, multivariate=True))
         n_jobs = -1
-    early_stop = EarlyStoppingCallback(early_stopping_rounds=200, startup_trials=startup_trials)
+    early_stop = EarlyStoppingCallback(early_stopping_rounds=early_stopping_rounds, startup_trials=startup_trials)
     
-    print("Starting Bayesian Optimization (Search Phase)...")
     study.optimize(objective, n_trials=None, n_jobs=n_jobs, callbacks=[early_stop], show_progress_bar=False)
 
-    if len(study.trials) == 0 or study.best_value == float('inf'):
+    if len(study.trials) == 0 or not study.best_trials:
         print("No feasible solution found.")
         return
 
@@ -437,7 +454,7 @@ def main(verbose=False):
     unity_from_settle_best, settlement_recipe_best = make_settlement_mega_recipe(
         best_unity_mult, hg_cost_mult, hg_unity_mult, ha_cost_mult, ha_unity_mult, ce_cost_mult, ce_unity_mult, best_food_mult, best_recyc_eff, provide_luxury_goods, provide_computing
     )
-    final_budget = unity_from_settle_best + unity_food_best + unity_maint_best + unity_recyc_best + unity_research_best
+    final_budget = unity_from_settle_best + unity_food_best + unity_maint_best + unity_recyc_best + unity_research_best - UNITY_BUFFER
     final_recipes = deepcopy(base_recipes)
     final_recipes.append(settlement_recipe_best)
     apply_edicts(final_recipes, best_maint_mult, best_recyc_eff)

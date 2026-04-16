@@ -3,6 +3,7 @@ import pickle
 import csv
 
 from building_sizes import building_sizes
+from config import LABS
 
 TIME_INDEPENDENT = {
     'Electricity', 'MechPower', 'Upoints', 'Research', 'Worker',
@@ -29,6 +30,21 @@ REMOVE_RECIPES = {
 # REMOVE_RECIPES |= {'DieselGenerator', 'DieselGeneratorT2', 'SteamGenerationCoal', 'SteamGenerationAnimalFeed', 'SteamGenerationHeavyOil', 'SteamGenerationMediumOil', 'SteamGenerationLightOil', 'SteamGenerationWood', 'SteamGenerationNaphtha','SteamGenerationEthanol', 'SteamGenerationFuelGas', 'SteamGenerationBiomass', 'SteamGenerationHydrogen'}
 
 ITEM_NAMES = set()
+
+ROCKET_CAPACITY = 138
+ROCKET_BUILD_TIME = 6 # months
+SPACE_STATION_TIERS = [
+    (0.15, 0, 0, 0.25, 0, 0),
+    (0.2, 2, 0.4, 0.5, 0, 0),
+    (0.25, 4, 0.8, 0.75, 2, 48),
+    (0.3, 6, 1.2, 1.0, 4, 96),
+    (0.35, 8, 1.6, 1.25, 6, 144),
+    (0.4, 10, 2.0, 1.5, 8, 192),
+    (0.45, 12, 2.4, 1.75, 10, 240),
+    (0.5, 14, 2.8, 2, 12, 288),
+]
+S_UNITY, S_CREW, S_SUPPLIES, S_PARTS, S_ELECTRONICS, S_RESEARCH = SPACE_STATION_TIERS[LABS + 1]
+S_ROCKETS = (S_ELECTRONICS + S_SUPPLIES + S_PARTS) / ROCKET_CAPACITY + 1 / 20 # plus one rocket per 20 months for crew
 
 # Hand-crafted recipes not present in the game data files
 AREA_FOR_1_WOOD_PER_MONTH = 324 # 20 designations
@@ -61,20 +77,39 @@ MANUAL_RECIPES = [
     # (
     #     'PollutedAirVoid',
     #     [('PollutedAir', 1)],
-    #     [('Upoints', -0.044 * 0.02), ('Worker', -1)],
+    #     [('Upoints', -0.044 * 0.02)],
     #     1
     # ),
     # (
     #     'PollutedWaterVoid',
     #     [('PollutedWaterVoid', 1)],
-    #     [('Upoints', -0.11 * 0.02), ('Worker', -1)],
+    #     [('Upoints', -0.11 * 0.02)],
     #     1
     # ),
-    # One large tree harvester + one planter
-    ('TreePlantingAndHarvesting',
-     [('TreeSapling', 2.5), ('Worker', 4), ('MaintenanceT1', 12)], # 1 large tree harvester, 1 planter, and 2 trucks
-     [('Wood', 50)],
-     50 * AREA_FOR_1_WOOD_PER_MONTH) # 1000 designations
+    (
+        'TreePlantingAndHarvesting',
+        [('TreeSapling', 2.5), ('Worker', 4), ('MaintenanceT1', 12)], # 1 large tree harvester, 1 planter, and 2 trucks
+        [('Wood', 50)],
+        50 * AREA_FOR_1_WOOD_PER_MONTH # 1000 designations
+    ),
+    (
+        'SpaceStationComprehensiveRecipe',
+        [('Electronics4', S_ELECTRONICS), ('SpaceStationParts2', S_PARTS), ('FoodPack', S_SUPPLIES), ('Worker', S_CREW), ('RocketLaunch', S_ROCKETS)],
+        [('SpaceResearch', S_RESEARCH), ('Upoints', S_UNITY)],
+        1
+    ),
+    (
+        'RocketComponents',
+        [('Water', 160), ('Oxygen', 90), ('Hydrogen', 320), ('CompositePanel', 480), ('TitaniumAlloy', 120), ('Steel', 80), ('Electronics3', 16)],
+        [('RocketComponents', 1)],
+        1,
+    ),
+    (
+        'RocketAssemblyAndLaunch',
+        [('RocketComponents', 1 / ROCKET_BUILD_TIME), ('Worker', 160 + 30), ('Computing', 8), ('Electricity', 2000)],
+        [('RocketLaunch', 1 / ROCKET_BUILD_TIME)],
+        41 * 21,
+    )
 ]
 
 SECONDS_PER_MONTH = 60
@@ -109,14 +144,12 @@ def load_recipes(data_path):
             if recipe_name in REMOVE_RECIPES:
                 continue
             time = recipe['time']
-            inputs = [
-                (item['name'], normalize_count(item['name'], item['count'], time, group_name))
-                for item in recipe.get('input', [])
-            ]
-            outputs = [
-                (item['name'], normalize_count(item['name'], item['count'], time, group_name))
-                for item in recipe.get('output', [])
-            ]
+            inputs = []
+            for item in recipe.get('input', []):
+                inputs.append((item['name'], normalize_count(item['name'], item['count'], time, group_name)))
+            outputs = []
+            for item in recipe.get('output', []):
+                outputs.append((item['name'], normalize_count(item['name'], item['count'], time, group_name)))
             ITEM_NAMES.update(name for name, _ in inputs)
             ITEM_NAMES.update(name for name, _ in outputs)
             recipes.append((f"{recipe_name} ({group_name})", inputs, outputs, building_sizes[group_name]))
@@ -130,7 +163,7 @@ def load_contracts(csv_path):
     with open(csv_path) as f:
         for ingredient, ingredient_count, product, product_count, unity_per_month, unity_per_shipment in csv.reader(f):
             assert ingredient in ITEM_NAMES and product in ITEM_NAMES
-            if product in AWKWARD_CONTRACT_PRODUCTS:
+            if product in AWKWARD_CONTRACT_PRODUCTS: # or ingredient == 'MedicalSupplies3'
                 continue
             name = f'Contract{ingredient}To{product}'
             rate = SECONDS_PER_MONTH / CONTRACT_ROUNDTRIP_TIME

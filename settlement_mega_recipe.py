@@ -65,9 +65,9 @@ def make_settlement_mega_recipe(unity_multiplier, hg_cost_mult, hg_unity_mult, h
     ]
     products.extend(zip(RECYCLING_PRODUCTS, recycling_output))
 
-    # Unity points: base amenities (food variety, health, decoration) + settlement-level amenities
+    # Unity points
     Upoints = (
-        3 + 1.2 + 1
+        3 + 1.2 + 1 # food variety, health, decoration
         + unity_multiplier * (
             1 + 1  # food satisfaction, hospital
             + luxury_goods * 1
