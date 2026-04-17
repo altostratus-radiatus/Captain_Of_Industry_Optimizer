@@ -1,3 +1,5 @@
+from config import GOODS_DIFFICULTY_MULTIPLIER, FOOD_DIFFICULTY_MULTIPLIER, UNITY_DIFFICULTY_MULTIPLIER
+
 # Recyclable consumer goods consumed by the settlement.
 # Each entry: (output_count, [copper, iron, aluminum, gold, glass] per batch)
 # Corresponds to: MedicalSupplies3, HouseholdGoods, HouseholdAppliances, ConsumerElectronics, LuxuryGoods
@@ -27,32 +29,32 @@ def make_settlement_mega_recipe(unity_multiplier, hg_cost_mult, hg_unity_mult, h
 
     # ingredients[2:7] are the five consumer goods that correspond to RECYCLABLES
     ingredients = [
-        ('Electricity',         1100 * m[0]),
-        ('Water',               47   * m[1]),
-        ('MedicalSupplies3',    5.4),
-        ('HouseholdGoods',      10   * m[2] * hg_cost_mult),
-        ('HouseholdAppliances', 7    * m[3] * ha_cost_mult),
-        ('ConsumerElectronics', 3.6  * m[4] * ce_cost_mult),
-        ('LuxuryGoods',         4    * m[5] * luxury_goods),
-        ('Computing',           58   * computing),
-        ('Potato',     4.20 / 12 * 10 * food_multiplier),
-        ('Corn',       3.00 / 12 * 10 * food_multiplier),
-        ('Bread',      2.00 / 12 * 10 * food_multiplier),
-        ('Meat',       2.70 / 16 * 10 * food_multiplier),
-        ('Eggs',       3.00 / 16 * 10 * food_multiplier),
-        ('Tofu',       1.80 / 16 * 10 * food_multiplier),
-        ('Sausage',    3.35 / 16 * 10 * food_multiplier),
-        ('Vegetables', 4.20 / 8  * 10 * food_multiplier),
-        ('Fruit',      3.15 / 8  * 10 * food_multiplier),
-        ('Snack',      2.60 / 8  * 10 * food_multiplier),
-        ('Cake',       2.50 / 8  * 10 * food_multiplier),
+        ('Electricity',         1100 * m[0] * GOODS_DIFFICULTY_MULTIPLIER),
+        ('Water',               47   * m[1] * GOODS_DIFFICULTY_MULTIPLIER),
+        ('MedicalSupplies3',    5.4 * GOODS_DIFFICULTY_MULTIPLIER),
+        ('HouseholdGoods',      10   * m[2] * hg_cost_mult * GOODS_DIFFICULTY_MULTIPLIER),
+        ('HouseholdAppliances', 7    * m[3] * ha_cost_mult * GOODS_DIFFICULTY_MULTIPLIER),
+        ('ConsumerElectronics', 3.6  * m[4] * ce_cost_mult * GOODS_DIFFICULTY_MULTIPLIER),
+        ('LuxuryGoods',         4    * m[5] * luxury_goods * GOODS_DIFFICULTY_MULTIPLIER),
+        ('Computing',           58   * computing * GOODS_DIFFICULTY_MULTIPLIER),
+        ('Potato',     4.20 / 12 * 10 * food_multiplier * FOOD_DIFFICULTY_MULTIPLIER),
+        ('Corn',       3.00 / 12 * 10 * food_multiplier * FOOD_DIFFICULTY_MULTIPLIER),
+        ('Bread',      2.00 / 12 * 10 * food_multiplier * FOOD_DIFFICULTY_MULTIPLIER),
+        ('Meat',       2.70 / 16 * 10 * food_multiplier * FOOD_DIFFICULTY_MULTIPLIER),
+        ('Eggs',       3.00 / 16 * 10 * food_multiplier * FOOD_DIFFICULTY_MULTIPLIER),
+        ('Tofu',       1.80 / 16 * 10 * food_multiplier * FOOD_DIFFICULTY_MULTIPLIER),
+        ('Sausage',    3.35 / 16 * 10 * food_multiplier * FOOD_DIFFICULTY_MULTIPLIER),
+        ('Vegetables', 4.20 / 8  * 10 * food_multiplier * FOOD_DIFFICULTY_MULTIPLIER),
+        ('Fruit',      3.15 / 8  * 10 * food_multiplier * FOOD_DIFFICULTY_MULTIPLIER),
+        ('Snack',      2.60 / 8  * 10 * food_multiplier * FOOD_DIFFICULTY_MULTIPLIER),
+        ('Cake',       2.50 / 8  * 10 * food_multiplier * FOOD_DIFFICULTY_MULTIPLIER),
     ]
 
     products = [
         ('Worker',    1000),
-        ('Waste',     29.3),
-        ('Biomass',   8.3 if unity_multiplier >= 1.75 else 4.1),  # depends on food and household goods
-        ('WasteWater', 39.2 * m[1]),
+        ('Waste',     29.3), # apparently waste doesn't increase with GOODS_DIFFICULTY_MULTIPLIER?
+        ('Biomass',   4.1 * FOOD_DIFFICULTY_MULTIPLIER + (4.2 if unity_multiplier >= 1.75 else 0)),  # depends on food and household goods
+        ('WasteWater', 39.2 * m[1] * GOODS_DIFFICULTY_MULTIPLIER),
     ]
 
     # Consumer goods produce scraps when recycled; scale by consumption rate and recycling efficiency
@@ -66,17 +68,17 @@ def make_settlement_mega_recipe(unity_multiplier, hg_cost_mult, hg_unity_mult, h
     products.extend(zip(RECYCLING_PRODUCTS, recycling_output))
 
     # Unity points
-    Upoints = (
-        3 + 1.2 + 1 # food variety, health, decoration
-        + unity_multiplier * (
-            1 + 1  # food satisfaction, hospital
-            + luxury_goods * 1
-            + computing * 1
-            + (unity_multiplier >= 1.5)  * (1 + 1.2)
-            + (unity_multiplier >= 1.75) * 1.4 * hg_unity_mult
-            + (unity_multiplier >= 2)    * 1.4 * ha_unity_mult
-            + (unity_multiplier >= 2.25) * 1.4 * ce_unity_mult
+    Upoints = 1.2 + 1 + UNITY_DIFFICULTY_MULTIPLIER * ( # health, decoration (and space station) are not affected by Unity difficulty multiplier?
+            3 # food variety
+            + unity_multiplier * (
+                1 + 1  # food satisfaction, hospital
+                + luxury_goods * 1
+                + computing * 1
+                + (unity_multiplier >= 1.5)  * (1 + 1.2)
+                + (unity_multiplier >= 1.75) * 1.4 * hg_unity_mult
+                + (unity_multiplier >= 2)    * 1.4 * ha_unity_mult
+                + (unity_multiplier >= 2.25) * 1.4 * ce_unity_mult
+            )
         )
-    )
 
     return Upoints, ('SettlementMegaRecipe', ingredients, products, SETTLEMENT_SIZE_PER_1000_WORKERS)

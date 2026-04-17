@@ -12,7 +12,7 @@ from ortools.init.python import init
 from ortools.linear_solver import pywraplp
 
 from settlement_mega_recipe import make_settlement_mega_recipe
-from config import BASE_RESEARCH_TARGET
+from config import BASE_RESEARCH_TARGET, MAINTENANCE_DIFFICULTY_MULTIPLIER
 
 # Big-M constant: must exceed any possible contract flow value
 BIG_M = 10_000
@@ -271,7 +271,7 @@ def apply_edicts(recipes, maintenance_multiplier, recycling_efficiency):
     for recipe_name, ingredients, products, _ in recipes:
         for i, (name, count) in enumerate(ingredients):
             if name.startswith('Maintenance'):
-                ingredients[i] = (name, maintenance_multiplier * count)
+                ingredients[i] = (name, count * maintenance_multiplier * MAINTENANCE_DIFFICULTY_MULTIPLIER)
         if recipe_name in RECYCLING_OUTPUTS:
             products.extend(
                 (scrap, amount * recycling_efficiency)
@@ -326,22 +326,22 @@ def main(verbose=False):
 
     # --- Re-run a combination ---
 
-    # # Settlement unity multiplers
-    # unity_multipliers           = [2]
+    # Settlement unity multiplers
+    unity_multipliers           = [2]
 
-    # # (effect_multiplier, unity_cost)
-    # research_edicts             = [(1.6, -6)]
-    # food_edicts                 = [(1.0, 0)] 
-    # maintenance_edicts          = [(0.7, -3)]
-    # recycling_edicts            = [(0.55, -5)]
+    # (effect_multiplier, unity_cost)
+    research_edicts             = [(1.6, -6)]
+    food_edicts                 = [(1.0, 0)] 
+    maintenance_edicts          = [(0.7, -3)]
+    recycling_edicts            = [(0.55, -5)]
 
-    # # (effect_multiplier, unity_multiplier_for_item)
-    # household_goods_edicts      = [(1, 1)]
-    # household_appliances_edicts = [(1, 1)]
-    # consumer_electronics_edicts = [(1, 1)]
+    # (effect_multiplier, unity_multiplier_for_item)
+    household_goods_edicts      = [(1, 1)]
+    household_appliances_edicts = [(1, 1)]
+    consumer_electronics_edicts = [(1, 1)]
 
-    # luxury_goods = [True]
-    # computing = [True]
+    luxury_goods = [True]
+    computing = [True]
 
     if not verbose:
         optuna.logging.set_verbosity(optuna.logging.WARNING)

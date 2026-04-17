@@ -3,7 +3,7 @@ import pickle
 import csv
 
 from building_sizes import building_sizes
-from config import LABS
+from config import LABS, FUEL_DIFFICULTY_MULTIPLIER, RAINWATER_DIFFICULTY_MULTIPLIER, FARM_YIELD_DIFFICULTY_MULTIPLIER, TREE_GROWTH_DIFFICULTY_MULTIPLIER
 
 TIME_INDEPENDENT = {
     'Electricity', 'MechPower', 'Upoints', 'Research', 'Worker',
@@ -47,7 +47,7 @@ S_UNITY, S_CREW, S_SUPPLIES, S_PARTS, S_ELECTRONICS, S_RESEARCH = SPACE_STATION_
 S_ROCKETS = (S_ELECTRONICS + S_SUPPLIES + S_PARTS) / ROCKET_CAPACITY + 1 / 20 # plus one rocket per 20 months for crew
 
 # Hand-crafted recipes not present in the game data files
-AREA_FOR_1_WOOD_PER_MONTH = 324 # 20 designations
+AREA_FOR_1_WOOD_PER_MONTH = 324 / TREE_GROWTH_DIFFICULTY_MULTIPLIER # 20 designations on normal, 40 on hard
 AREA_FOR_1_WOOD_PER_MONTH *= 0.1 # don't penalize wood harvesting too much?
 MANUAL_RECIPES = [
     (
@@ -64,13 +64,13 @@ MANUAL_RECIPES = [
     ),
     # (
     #     'TruckDiesel',
-    #     [('Worker', 1), ('MaintenanceT1', 4), ('Diesel', 1.1)],
+    #     [('Worker', 1), ('MaintenanceT1', 4), ('Diesel', 1.1 * FUEL_DIFFICULTY_MULTIPLIER)],
     #     [('Truck', 1)],
     #     0.000001
     # ),
     (
         'TruckHydrogen',
-        [('Worker', 1), ('MaintenanceT1', 3.6), ('Hydrogen', 1.3)],
+        [('Worker', 1), ('MaintenanceT1', 3.6), ('Hydrogen', 1.3 * FUEL_DIFFICULTY_MULTIPLIER)],
         [('Truck', 1)],
         0.000001
     ),
@@ -114,10 +114,12 @@ MANUAL_RECIPES = [
 
 SECONDS_PER_MONTH = 60
 CONTRACT_ROUNDTRIP_TIME = 270
-CONTRACT_HYDROGEN_PER_TRIP = 1013
+CONTRACT_HYDROGEN_PER_TRIP = 1013 * FUEL_DIFFICULTY_MULTIPLIER
 CONTRACT_INFRA_COSTS = [('Worker', 8 * 5 + 36), ('MaintenanceT1', 8 * 4), ('Electricity', 8 * 250), ('Hydrogen', CONTRACT_HYDROGEN_PER_TRIP / CONTRACT_ROUNDTRIP_TIME * SECONDS_PER_MONTH)]
 CONTRACT_BUILDING_SIZE = 8 * 50 + 80 # whatever
-AWKWARD_CONTRACT_PRODUCTS = {'Wheat', 'SugarCane', 'Corn', 'Wood', 'Vegetables', 'ChickenCarcass', 'FuelGas'}
+AWKWARD_CONTRACT_PRODUCTS = {
+    'Wheat', 'SugarCane', 'Corn', 'Wood', 'Vegetables', 'ChickenCarcass', 'FuelGas'
+}
 
 def normalize_count(name, count, time, group_name):
     """Convert a recipe quantity to per-60-second throughput for one machine."""
@@ -146,10 +148,16 @@ def load_recipes(data_path):
             time = recipe['time']
             inputs = []
             for item in recipe.get('input', []):
-                inputs.append((item['name'], normalize_count(item['name'], item['count'], time, group_name)))
+                count = normalize_count(item['name'], item['count'], time, group_name)
+                inputs.append((item['name'], count))
             outputs = []
             for item in recipe.get('output', []):
-                outputs.append((item['name'], normalize_count(item['name'], item['count'], time, group_name)))
+                count = normalize_count(item['name'], item['count'], time, group_name)
+                if group_name == 'RainwaterHarvester' and item['name'] == 'Water':
+                    count *= RAINWATER_DIFFICULTY_MULTIPLIER
+                elif group_name.startswith('Farm'):
+                    count *= FARM_YIELD_DIFFICULTY_MULTIPLIER
+                outputs.append((item['name'], count))
             ITEM_NAMES.update(name for name, _ in inputs)
             ITEM_NAMES.update(name for name, _ in outputs)
             recipes.append((f"{recipe_name} ({group_name})", inputs, outputs, building_sizes[group_name]))
