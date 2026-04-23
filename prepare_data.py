@@ -3,7 +3,7 @@ import pickle
 import csv
 
 from building_sizes import building_sizes
-from config import LABS, FUEL_DIFFICULTY_MULTIPLIER, RAINWATER_DIFFICULTY_MULTIPLIER, FARM_YIELD_DIFFICULTY_MULTIPLIER, TREE_GROWTH_DIFFICULTY_MULTIPLIER
+from config import LABS, FUEL_DIFFICULTY_MULTIPLIER, RAINWATER_DIFFICULTY_MULTIPLIER, FARM_YIELD_DIFFICULTY_MULTIPLIER, TREE_GROWTH_DIFFICULTY_MULTIPLIER, IGNORE_POLLUTION_FROM_EXHAUST_SCRUBBING
 
 TIME_INDEPENDENT = {
     'Electricity', 'MechPower', 'Upoints', 'Research', 'Worker',
@@ -28,6 +28,8 @@ REMOVE_RECIPES = {
 # REMOVE_RECIPES |= {'RainwaterHarvester', 'SolarPanel', 'SolarPanelMono'}
 
 # REMOVE_RECIPES |= {'DieselGenerator', 'DieselGeneratorT2', 'SteamGenerationCoal', 'SteamGenerationAnimalFeed', 'SteamGenerationHeavyOil', 'SteamGenerationMediumOil', 'SteamGenerationLightOil', 'SteamGenerationWood', 'SteamGenerationNaphtha','SteamGenerationEthanol', 'SteamGenerationFuelGas', 'SteamGenerationBiomass', 'SteamGenerationHydrogen'}
+
+# REMOVE_RECIPES |= {'CpAssemblyT1', 'CpAssemblyT2', 'CpAssemblyT3', 'CpAssemblyT4', 'CpAssemblyT5'}
 
 ITEM_NAMES = set()
 
@@ -157,6 +159,8 @@ def load_recipes(data_path):
                     count *= RAINWATER_DIFFICULTY_MULTIPLIER
                 elif group_name.startswith('Farm'):
                     count *= FARM_YIELD_DIFFICULTY_MULTIPLIER
+                elif IGNORE_POLLUTION_FROM_EXHAUST_SCRUBBING and recipe_name == 'ExhaustFiltering' and item['name'] == 'PollutedAir':
+                    continue
                 outputs.append((item['name'], count))
             ITEM_NAMES.update(name for name, _ in inputs)
             ITEM_NAMES.update(name for name, _ in outputs)

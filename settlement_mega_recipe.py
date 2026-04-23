@@ -31,7 +31,7 @@ def make_settlement_mega_recipe(unity_multiplier, hg_cost_mult, hg_unity_mult, h
     ingredients = [
         ('Electricity',         1100 * m[0] * GOODS_DIFFICULTY_MULTIPLIER),
         ('Water',               47   * m[1] * GOODS_DIFFICULTY_MULTIPLIER),
-        ('MedicalSupplies3',    5.4 * GOODS_DIFFICULTY_MULTIPLIER),
+        ('MedicalSupplies3',    5.4  * GOODS_DIFFICULTY_MULTIPLIER),
         ('HouseholdGoods',      10   * m[2] * hg_cost_mult * GOODS_DIFFICULTY_MULTIPLIER),
         ('HouseholdAppliances', 7    * m[3] * ha_cost_mult * GOODS_DIFFICULTY_MULTIPLIER),
         ('ConsumerElectronics', 3.6  * m[4] * ce_cost_mult * GOODS_DIFFICULTY_MULTIPLIER),

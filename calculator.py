@@ -15,7 +15,7 @@ from settlement_mega_recipe import make_settlement_mega_recipe
 from config import BASE_RESEARCH_TARGET, MAINTENANCE_DIFFICULTY_MULTIPLIER
 
 # Big-M constant: must exceed any possible contract flow value
-BIG_M = 10_000
+BIG_M = 10
 
 # Consider solutions with extremely close objective costs equivalent
 OBJECTIVE_SIGNIFICANT_DIGITS = 4
@@ -35,7 +35,7 @@ CONTRACT_ACTIVATION_PENALTY = 10
 PRODUCTION_TARGETS = {
     'Research': BASE_RESEARCH_TARGET,
     'SpaceResearch': BASE_RESEARCH_TARGET,
-    'Worker': 2000, # add some extra workers because LP underestimates real worker count due to fractional flows/machine counts
+    'Worker': 3000, # add some extra workers because LP underestimates real worker count due to fractional flows/machine counts
     'Truck': 200,
 }
 ALLOW_OVERPRODUCTION = {
@@ -293,7 +293,7 @@ def main(verbose=False):
 
     # # (effect_multiplier, unity_cost)
     # research_edicts             = [(1, 0), (1.15, -1), (1.25, -2), (1.35, -3), (1.45, -4), (1.6, -6)]
-    # food_edicts                 = [(1.0, 0), (1.2, 1), (1.4, 2)] 
+    # food_edicts                 = [(0.7, -2), (0.8, -1), (1.0, 0), (1.2, 1), (1.4, 2)] 
     # maintenance_edicts          = [(1.0, 0), (0.85, -1), (0.75, -2), (0.7, -3)]
     # recycling_edicts            = [(0.20, 0), (0.32, -1), (0.42, -2), (0.50, -3.5), (0.55, -5), (0.60, -7)]
 
@@ -312,7 +312,7 @@ def main(verbose=False):
 
     # (effect_multiplier, unity_cost)
     research_edicts             = [(1.6, -6)]
-    food_edicts                 = [(1.0, 0), (1.2, 1), (1.4, 2)] 
+    food_edicts                 = [(0.7, -2), (0.8, -1), (1.0, 0)] 
     maintenance_edicts          = [(1.0, 0), (0.85, -1), (0.75, -2), (0.7, -3)]
     recycling_edicts            = [(0.20, 0), (0.32, -1), (0.42, -2), (0.50, -3.5), (0.55, -5), (0.60, -7)]
 
@@ -326,22 +326,22 @@ def main(verbose=False):
 
     # --- Re-run a combination ---
 
-    # Settlement unity multiplers
-    unity_multipliers           = [2]
+    # # Settlement unity multiplers
+    # unity_multipliers           = [2]
 
-    # (effect_multiplier, unity_cost)
-    research_edicts             = [(1.6, -6)]
-    food_edicts                 = [(1.0, 0)] 
-    maintenance_edicts          = [(0.7, -3)]
-    recycling_edicts            = [(0.55, -5)]
+    # # (effect_multiplier, unity_cost)
+    # research_edicts             = [(1.6, -6)]
+    # food_edicts                 = [(1.0, 0)] 
+    # maintenance_edicts          = [(0.75, -2)]
+    # recycling_edicts            = [(0.60, -7)]
 
-    # (effect_multiplier, unity_multiplier_for_item)
-    household_goods_edicts      = [(1, 1)]
-    household_appliances_edicts = [(1, 1)]
-    consumer_electronics_edicts = [(1, 1)]
+    # # (effect_multiplier, unity_multiplier_for_item)
+    # household_goods_edicts      = [(1, 1)]
+    # household_appliances_edicts = [(1, 1)]
+    # consumer_electronics_edicts = [(1, 1)]
 
-    luxury_goods = [True]
-    computing = [True]
+    # luxury_goods = [True]
+    # computing = [False]
 
     if not verbose:
         optuna.logging.set_verbosity(optuna.logging.WARNING)
